@@ -1,0 +1,39 @@
+object Form1: TForm1
+  Left = 619
+  Height = 554
+  Top = 156
+  Width = 573
+  Caption = 'Form1'
+  ClientHeight = 531
+  ClientWidth = 573
+  Menu = MainMenu1
+  OnCreate = FormCreate
+  LCLVersion = '0.9.30'
+  object WeiqiBoard1: TWeiqiBoard
+    Left = 0
+    Height = 510
+    Top = 0
+    Width = 573
+    Align = alClient
+    OnItemClick = WeiqiBoard1ItemClick
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Height = 21
+    Top = 510
+    Width = 573
+    Panels = <>
+    SimpleText = 'New Game'
+  end
+  object MainMenu1: TMainMenu
+    left = 71
+    top = 88
+    object MenuItem1: TMenuItem
+      Caption = '&Game'
+      object MINewGame: TMenuItem
+        Caption = '&New Game'
+        OnClick = MINewGameClick
+      end
+    end
+  end
+end
