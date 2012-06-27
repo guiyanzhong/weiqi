@@ -22,9 +22,13 @@ type
     BoardALiveStatus: Array of Array of Boolean;
     BoardVisitedStatus: Array of Array of Boolean;
     FOnBoardClick: TWeiqiBoardClickEvent;
+    hasCapturedItems, hasBlackCapturedItems, hasWhiteCapturedItems: Boolean;
+    TimerRemoveCaptured: TTimer;
     procedure OnMouseUpHandler(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure OnPaintHandler(Sender: TObject);
-    function RemoveCapturedItems(Last_X, Last_Y: Integer): Boolean;
+    procedure MarkCapturedItems(Last_X, Last_Y: Integer);
+    procedure RemoveCapturedItems;
+    procedure TimerRemoveCapturedTimer(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -147,56 +151,107 @@ begin
     end;
 end;
 
-function TWeiqiBoard.RemoveCapturedItems(Last_X, Last_Y: Integer): Boolean;
-var
-  i, j: Integer;
-  possible_has_more: Boolean;
-  PlayerSide: TPlayerSide;
-begin
-  // Initialize data.
-  for i := 0 to boardSize - 1 do
-    for j := 0 to boardSize - 1 do
-      BoardALiveStatus[i][j] := False;
-  for i := 0 to boardSize - 1 do
-    for j := 0 to boardSize - 1 do
-      BoardVisitedStatus[i][j] := False;
-
-  // Check for blank items.
-  for i := 0 to boardSize - 1 do
-    for j := 0 to boardSize - 1 do
-      if BoardItems[i][j] = psNone then
-      begin
-        BoardVisitedStatus[i][j] := True;
-        BoardALiveStatus[i][j] := True;
-        if i > 0 then BoardALiveStatus[i - 1][j] := True;
-        if j > 0 then BoardALiveStatus[i][j - 1] := True;
-        if i < boardSize - 1 then BoardALiveStatus[i + 1][j] := True;
-        if j < boardSize - 1 then BoardALiveStatus[i][j + 1] := True;
-      end;
-  // Check for same color items.
-  repeat
-    possible_has_more := False;
+procedure TWeiqiBoard.MarkCapturedItems(Last_X, Last_Y: Integer);
+  procedure Init;
+  var
+    i, j: Integer;
+  begin
     for i := 0 to boardSize - 1 do
       for j := 0 to boardSize - 1 do
-        if (BoardItems[i][j] <> psNone) and BoardALiveStatus[i][j] and not BoardVisitedStatus[i][j] then
+        BoardALiveStatus[i][j] := False;
+    for i := 0 to boardSize - 1 do
+      for j := 0 to boardSize - 1 do
+        BoardVisitedStatus[i][j] := False;
+  end;
+
+  procedure BlanksAndItemsArroundBlankShouldBeAlive;
+  var
+    i, j: Integer;
+  begin
+    for i := 0 to boardSize - 1 do
+      for j := 0 to boardSize - 1 do
+        if BoardItems[i][j] = psNone then
         begin
           BoardVisitedStatus[i][j] := True;
-          possible_has_more := True;
-          PlayerSide := BoardItems[i][j];
-          if i > 0 then if BoardItems[i - 1][j] = PlayerSide then BoardALiveStatus[i - 1][j] := True;
-          if j > 0 then if BoardItems[i][j - 1] = PlayerSide then BoardALiveStatus[i][j - 1] := True;
-          if i < boardSize - 1 then if BoardItems[i + 1][j] = PlayerSide then BoardALiveStatus[i + 1][j] := True;
-          if j < boardSize - 1 then if BoardItems[i][j + 1] = PlayerSide then BoardALiveStatus[i][j + 1] := True;
+          BoardALiveStatus[i][j] := True;
+          if i > 0 then BoardALiveStatus[i - 1][j] := True;
+          if j > 0 then BoardALiveStatus[i][j - 1] := True;
+          if i < boardSize - 1 then BoardALiveStatus[i + 1][j] := True;
+          if j < boardSize - 1 then BoardALiveStatus[i][j + 1] := True;
         end;
-  until not possible_has_more;
+  end;
+  procedure ItemsArroundAliveItemsShouldBeAlive;
+  var
+    i, j: Integer;
+    possible_has_more: Boolean;
+    PlayerSide: TPlayerSide;
+  begin
+    repeat
+      possible_has_more := False;
+      for i := 0 to boardSize - 1 do
+        for j := 0 to boardSize - 1 do
+          if (BoardItems[i][j] <> psNone) and BoardALiveStatus[i][j] and not BoardVisitedStatus[i][j] then
+          begin
+            BoardVisitedStatus[i][j] := True;
+            possible_has_more := True;
+            PlayerSide := BoardItems[i][j];
+            if i > 0 then if BoardItems[i - 1][j] = PlayerSide then BoardALiveStatus[i - 1][j] := True;
+            if j > 0 then if BoardItems[i][j - 1] = PlayerSide then BoardALiveStatus[i][j - 1] := True;
+            if i < boardSize - 1 then if BoardItems[i + 1][j] = PlayerSide then BoardALiveStatus[i + 1][j] := True;
+            if j < boardSize - 1 then if BoardItems[i][j + 1] = PlayerSide then BoardALiveStatus[i][j + 1] := True;
+          end;
+    until not possible_has_more;
+  end;
+  procedure DoWeHaveCapturedItems;
+  var
+    i, j: Integer;
+  begin
+    for i := 0 to boardSize - 1 do
+      for j := 0 to boardSize - 1 do
+        if not BoardALiveStatus[i][j] then
+        begin
+          hasCapturedItems := True;
+          if BoardItems[i][j] = psBlack then
+            hasBlackCapturedItems := True;
+          if BoardItems[i][j] = psWhite then
+            hasWhiteCapturedItems := True;
+        end;
+  end;
+begin
+  Init;
+  BlanksAndItemsArroundBlankShouldBeAlive;
+  ItemsArroundAliveItemsShouldBeAlive;
+  // Myself should not be captured.
+  if not BoardALiveStatus[Last_X][Last_Y] then
+  begin
+    if ((BoardItems[Last_X][Last_Y] = psBlack) and hasWhiteCapturedItems) or ((BoardItems[Last_X][Last_Y] = psBlack) and hasWhiteCapturedItems) then
+    begin
+      BoardALiveStatus[Last_X][Last_Y] := True;
+      BoardVisitedStatus[Last_X][Last_Y] := True;
+      ItemsArroundAliveItemsShouldBeAlive;
+    end
+    else
+    // This move (self-killing but not killing op) is not allowed.
+  end;
+  DoWeHaveCapturedItems;
+end;
 
-  // Remove captured ones.
-  Result := BoardALiveStatus[Last_X][Last_Y];
-  //if Result then
-  //  for i := 0 to boardSize - 1 do
-  //    for j := 0 to boardSize - 1 do
-  //      if (BoardItems[i][j] <> psNone) and (not BoardALiveStatus[i][j]) then
-  //        BoardItems[i][j] := psNone;
+procedure TWeiqiBoard.RemoveCapturedItems;
+var
+  i, j: Integer;
+begin
+  for i := 0 to boardSize - 1 do
+    for j := 0 to boardSize - 1 do
+      if (BoardItems[i][j] <> psNone) and (not BoardALiveStatus[i][j]) then
+        BoardItems[i][j] := psNone;
+  hasCapturedItems := False;
+end;
+
+procedure TWeiqiBoard.TimerRemoveCapturedTimer(Sender: TObject);
+begin
+  TTimer(Sender).Enabled := False;
+  RemoveCapturedItems;
+  Invalidate;
 end;
 
 constructor TWeiqiBoard.Create(AOwner: TComponent);
@@ -233,12 +288,18 @@ begin
   end;
   OnMouseUp := @OnMouseUpHandler;
   OnPaint := @OnPaintHandler;
+  hasCapturedItems := False;
+  TimerRemoveCaptured := TTimer.Create(Nil);
+  TimerRemoveCaptured.Enabled := False;
+  TimerRemoveCaptured.Interval := 1000;
+  TimerRemoveCaptured.OnTimer := @TimerRemoveCapturedTimer;
 end;
 
 destructor TWeiqiBoard.Destroy;
 var
   i: Integer;
 begin
+  TimerRemoveCaptured.Free;
   // Clear data members.
   for i := 0 to boardSize - 1 do
     SetLength(BoardVisitedStatus[i], 0);
@@ -264,6 +325,8 @@ end;
 
 function TWeiqiBoard.Move(X, Y: Integer; PlaySide: TPlayerSide): Boolean;
 begin
+  if TimerRemoveCaptured.Enabled then
+    Exit;
   Assert((X >= 0) and (Y >= 0) and (X < boardSize) and (Y < boardSize));
   if (X >= 0) and (Y >= 0) and (X < boardSize) and (Y < boardSize) then
   begin
@@ -271,15 +334,10 @@ begin
     if Result then
     begin
       BoardItems[X][Y] := PlaySide;
-      RemoveCapturedItems(X, Y);
+      MarkCapturedItems(X, Y);
       Invalidate;
-      //  if RemoveCapturedItems(X, Y) then
-      //    Invalidate
-      //else
-      //begin
-      //  BoardItems[X][Y] := psNone;
-      //  Result := False;
-      //end;
+      if hasCapturedItems then
+        TimerRemoveCaptured.Enabled := True;
     end;
   end
   else

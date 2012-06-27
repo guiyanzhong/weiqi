@@ -1,5 +1,5 @@
 object Form1: TForm1
-  Left = 619
+  Left = 620
   Height = 554
   Top = 156
   Width = 573
@@ -35,5 +35,10 @@ object Form1: TForm1
         OnClick = MINewGameClick
       end
     end
+  end
+  object Timer1: TTimer
+    OnTimer = Timer1Timer
+    left = 195
+    top = 110
   end
 end

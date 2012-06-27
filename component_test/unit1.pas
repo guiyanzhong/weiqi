@@ -17,9 +17,11 @@ type
     MenuItem1: TMenuItem;
     MINewGame: TMenuItem;
     StatusBar1: TStatusBar;
+    Timer1: TTimer;
     WeiqiBoard1: TWeiqiBoard;
     procedure FormCreate(Sender: TObject);
     procedure MINewGameClick(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
     procedure WeiqiBoard1ItemClick(Sender: TObject; X, Y: Integer);
   private
     { private declarations }
@@ -57,6 +59,11 @@ procedure TForm1.MINewGameClick(Sender: TObject);
 begin
   WeiqiBoard1.Clear;
   ps := psBlack;
+end;
+
+procedure TForm1.Timer1Timer(Sender: TObject);
+begin
+
 end;
 
 end.
